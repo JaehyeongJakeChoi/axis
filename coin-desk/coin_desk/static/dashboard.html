@@ -1,0 +1,619 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coin Desk</title>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f4f3f0; --surface: #fcfcfb; --surface-2: #f0efec; --border: #e2e0da;
+  --text: #0b0b0b; --text-2: #52514e; --text-3: #85847f;
+  --accent: #2a78d6; --accent-ink: #ffffff;
+  --a1: #2a78d6; --a2: #eb6834; --a3: #1baf7a; --a4: #eda100; --a5: #e87ba4; --a6: #008300; --a7: #4a3aa7; --a8: #e34948;
+  --good: #0ca30c; --warning: #fab219; --serious: #ec835a; --critical: #d03b3b;
+  --good-ink: #006300; --critical-ink: #b02a2a; --warning-ink: #8a5a00;
+  --grid: #e7e5df; --shade: rgba(42,120,214,.07);
+  --radius: 10px; --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --bg: #121211; --surface: #1a1a19; --surface-2: #232321; --border: #33332f;
+    --text: #ffffff; --text-2: #c3c2b7; --text-3: #8d8c84;
+    --accent: #3987e5;
+    --a1: #3987e5; --a2: #d95926; --a3: #199e70; --a4: #c98500; --a5: #d55181; --a6: #008300; --a7: #9085e9; --a8: #e66767;
+    --good-ink: #4cc94c; --critical-ink: #ff8a8a; --warning-ink: #fab219;
+    --grid: #2a2a27; --shade: rgba(57,135,229,.10);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #121211; --surface: #1a1a19; --surface-2: #232321; --border: #33332f;
+  --text: #ffffff; --text-2: #c3c2b7; --text-3: #8d8c84;
+  --accent: #3987e5;
+  --a1: #3987e5; --a2: #d95926; --a3: #199e70; --a4: #c98500; --a5: #d55181; --a6: #008300; --a7: #9085e9; --a8: #e66767;
+  --good-ink: #4cc94c; --critical-ink: #ff8a8a; --warning-ink: #fab219;
+  --grid: #2a2a27; --shade: rgba(57,135,229,.10);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--text); font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Segoe UI", sans-serif; }
+button, select, textarea, input { font: inherit; color: inherit; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* 헤더 */
+header { position: sticky; top: 0; z-index: 10; background: var(--surface); border-bottom: 1px solid var(--border);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; padding: 10px 16px; }
+.brand { font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+.badge { font-size: 11px; font-weight: 700; letter-spacing: .04em; padding: 2px 8px; border-radius: 99px; border: 1px solid var(--border); color: var(--text-2); }
+.badge.live { background: var(--critical); border-color: var(--critical); color: #fff; }
+.badge.testnet { border-color: var(--warning); color: var(--warning-ink); }
+.kpis { display: flex; flex-wrap: wrap; gap: 4px 18px; }
+.kpi { display: flex; flex-direction: column; }
+.kpi .k { font-size: 11px; color: var(--text-3); }
+.kpi .v { font-weight: 600; }
+.spacer { flex: 1; }
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.btn { border: 1px solid var(--border); background: var(--surface); padding: 6px 12px; border-radius: 8px; cursor: pointer; white-space: nowrap; }
+.btn:hover:not(:disabled) { background: var(--surface-2); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.switch { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-2); cursor: pointer; user-select: none; }
+.switch input { accent-color: var(--accent); }
+
+.banner { margin: 10px 16px 0; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); font-size: 13px; display: none; }
+.banner.show { display: block; }
+.banner.run { border-color: var(--accent); }
+.banner.warn { border-color: var(--warning); }
+
+/* 레이아웃 */
+main { display: grid; grid-template-columns: 290px minmax(0, 1fr) 380px; gap: 12px; padding: 12px 16px 16px; height: calc(100vh - 64px); }
+.col { display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; }
+.panel h2 { font-size: 13px; margin: 0 0 8px; color: var(--text-2); font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.scroll { overflow-y: auto; min-height: 0; }
+.muted { color: var(--text-3); }
+.small { font-size: 12px; }
+
+/* 조직도 */
+.group-label { font-size: 11px; color: var(--text-3); margin: 10px 0 4px; letter-spacing: .03em; }
+.group-label:first-child { margin-top: 0; }
+.agent { display: grid; grid-template-columns: 28px 1fr; gap: 2px 8px; padding: 8px; border-radius: 8px; border: 1px solid transparent; cursor: pointer; }
+.agent:hover { background: var(--surface-2); }
+.agent.selected { border-color: var(--accent); background: var(--surface-2); }
+.avatar { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 700; color: #fff; grid-row: span 2; position: relative; }
+.avatar.working::after { content: ""; position: absolute; inset: -3px; border-radius: 50%; border: 2px solid var(--accent); animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { opacity: .2; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .avatar.working::after { animation: none; opacity: .8; } }
+.agent .name { font-weight: 600; font-size: 13px; display: flex; gap: 6px; align-items: center; min-width: 0; }
+.agent .name span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pill { font-size: 10px; padding: 1px 6px; border-radius: 99px; background: var(--surface-2); color: var(--text-2); white-space: nowrap; border: 1px solid var(--border); }
+.pill.working { color: var(--accent); border-color: var(--accent); }
+.pill.stale { color: var(--warning-ink); border-color: var(--warning); }
+.agent .action { font-size: 12px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 회의실 피드 */
+.feed-panel { display: flex; flex-direction: column; min-height: 0; flex: 1; padding: 0; }
+.feed-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+.feed-head h2 { margin: 0; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { font-size: 12px; padding: 3px 10px; border-radius: 99px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; }
+.chip.on { background: var(--text); color: var(--surface); border-color: var(--text); }
+#feed { flex: 1; min-height: 0; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.ev { display: grid; grid-template-columns: 28px 1fr; gap: 8px; }
+.ev .avatar { grid-row: auto; width: 26px; height: 26px; font-size: 10px; }
+.ev .meta { font-size: 12px; color: var(--text-3); margin-bottom: 2px; }
+.ev .meta b { color: var(--text); font-weight: 600; }
+.bubble { background: var(--surface-2); border-radius: 4px 10px 10px 10px; padding: 8px 10px; white-space: pre-wrap; word-break: break-word; }
+.bubble.user { background: transparent; border: 1px solid var(--accent); }
+.note { font-size: 13px; color: var(--text-2); font-style: italic; white-space: pre-wrap; }
+.tool { font: 12px/1.4 var(--mono); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.phase { display: flex; align-items: center; gap: 10px; color: var(--text-3); font-size: 12px; margin: 6px 0; }
+.phase::before, .phase::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+.card { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; background: var(--surface); }
+.card h3 { margin: 0 0 6px; font-size: 13px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px 12px; margin: 6px 0; }
+.stat .k { font-size: 11px; color: var(--text-3); }
+.stat .v { font-weight: 600; font-variant-numeric: tabular-nums; }
+.body-text { white-space: pre-wrap; word-break: break-word; font-size: 13px; }
+details summary { cursor: pointer; color: var(--text-2); font-size: 12px; margin-top: 4px; }
+.verdict { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 99px; color: #fff; }
+.verdict.approve { background: var(--good); }
+.verdict.revise { background: var(--warning); color: #3a2a00; }
+.verdict.reject { background: var(--critical); }
+.issue { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; font-size: 13px; padding: 6px 0; border-top: 1px dashed var(--border); }
+.sev { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; border: 1px solid currentColor; height: fit-content; }
+.sev.critical { color: var(--critical-ink); } .sev.high { color: var(--critical-ink); } .sev.medium { color: var(--warning-ink); } .sev.low { color: var(--text-3); }
+.err { border-color: var(--critical); }
+.err h3 { color: var(--critical-ink); }
+
+/* 컴포저 */
+.composer { border-top: 1px solid var(--border); padding: 10px 12px; display: grid; grid-template-columns: auto auto 1fr auto; gap: 8px; align-items: end; }
+.composer select, .composer textarea { border: 1px solid var(--border); background: var(--surface); border-radius: 8px; padding: 6px 8px; }
+.composer textarea { resize: vertical; min-height: 38px; max-height: 160px; width: 100%; }
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; background: var(--surface); padding: 6px 10px; cursor: pointer; }
+.seg button.on { background: var(--text); color: var(--surface); }
+.hint { grid-column: 1 / -1; font-size: 11px; color: var(--text-3); }
+
+/* 오른쪽 */
+.sleeve { display: grid; grid-template-columns: 1fr 44px; gap: 2px 8px; align-items: center; margin: 6px 0; font-size: 13px; }
+.bar { height: 6px; background: var(--surface-2); border-radius: 3px; overflow: hidden; grid-column: 1 / -1; }
+.bar > i { display: block; height: 100%; background: var(--accent); border-radius: 0 4px 4px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th { text-align: left; font-weight: 600; color: var(--text-3); padding: 4px; border-bottom: 1px solid var(--border); }
+td { padding: 5px 4px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+td.r, th.r { text-align: right; }
+.legend { display: flex; gap: 14px; font-size: 12px; color: var(--text-2); margin-bottom: 4px; flex-wrap: wrap; }
+.legend i { display: inline-block; width: 12px; height: 2px; vertical-align: middle; margin-right: 5px; }
+.chart { position: relative; }
+.chart svg { display: block; width: 100%; }
+.tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.12); display: none; white-space: nowrap; z-index: 2; }
+.meter { position: relative; height: 8px; background: var(--surface-2); border-radius: 4px; margin: 6px 0 2px; }
+.meter > i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; background: var(--serious); }
+.meter > b { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--critical); }
+.kv { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; font-size: 13px; }
+.kv .k { color: var(--text-3); }
+.status-line { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.status-line.ok { color: var(--good-ink); } .status-line.bad { color: var(--critical-ink); } .status-line.warn { color: var(--warning-ink); }
+.auto-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; }
+.auto-row input[type=number] { width: 64px; border: 1px solid var(--border); background: var(--surface); border-radius: 6px; padding: 3px 6px; }
+
+@media (max-width: 1200px) {
+  main { grid-template-columns: 260px minmax(0, 1fr); height: auto; }
+  #right { grid-column: 1 / -1; }
+  .feed-panel { flex: none; height: 75vh; }
+  #left .panel { max-height: 75vh; }
+}
+@media (max-width: 760px) {
+  header { padding: 10px 16px; }
+  main { grid-template-columns: 1fr; padding: 12px 16px; }
+  #left .panel { max-height: 50vh; }
+  .composer { grid-template-columns: 1fr 1fr; }
+  .composer textarea, .composer .send { grid-column: 1 / -1; }
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">🪙 Coin Desk <span id="mode" class="badge">PAPER</span></div>
+  <div class="kpis">
+    <div class="kpi"><span class="k" id="px-k">BTC</span><span class="v num" id="px">—</span></div>
+    <div class="kpi"><span class="k">자산</span><span class="v num" id="eq">—</span></div>
+    <div class="kpi"><span class="k">BTC 비중</span><span class="v num" id="expo">—</span></div>
+    <div class="kpi"><span class="k">리스크 가드</span><span class="v" id="guard">—</span></div>
+    <div class="kpi"><span class="k">LLM 비용(추정)</span><span class="v num" id="cost">—</span></div>
+  </div>
+  <div class="spacer"></div>
+  <div class="controls">
+    <label class="switch" title="체크하면 Claude API 대신 정해진 순서로 움직이는 가짜 에이전트를 씁니다 (비용 없음)">
+      <input type="checkbox" id="mock"> 모의 LLM
+    </label>
+    <button class="btn primary" data-job="research">📋 전략 회의</button>
+    <button class="btn" data-job="trade">💱 매매 1회</button>
+    <button class="btn" data-job="monitor">🛡️ 레드팀 점검</button>
+    <button class="btn" id="theme" title="테마 전환">◐</button>
+  </div>
+</header>
+<div id="banner-run" class="banner run"></div>
+<div id="banner-warn" class="banner warn"></div>
+
+<main>
+  <section class="col" id="left">
+    <div class="panel scroll">
+      <h2>조직도 <span class="muted small">클릭하면 대화 대상 선택 + 피드 필터</span></h2>
+      <div id="org"></div>
+    </div>
+  </section>
+
+  <section class="col">
+    <div class="panel feed-panel">
+      <div class="feed-head">
+        <h2>회의실</h2>
+        <div class="chips" id="filters">
+          <button class="chip on" data-f="all">전체</button>
+          <button class="chip" data-f="talk">대화·보고만</button>
+        </div>
+        <label class="switch small"><input type="checkbox" id="show-tools"> 도구 호출</label>
+        <span id="agent-filter"></span>
+        <div class="spacer"></div>
+        <button class="chip" id="jump" style="display:none">↓ 새 이벤트</button>
+      </div>
+      <div id="feed" aria-live="polite"></div>
+      <form class="composer" id="composer">
+        <select id="to" aria-label="받는 에이전트"></select>
+        <div class="seg" role="group" aria-label="보내는 방식">
+          <button type="button" data-m="ask" class="on">질문하기</button>
+          <button type="button" data-m="memo">메모 남기기</button>
+        </div>
+        <textarea id="text" rows="1" placeholder="예: 지금 전략서에서 가장 불안한 부분이 뭐야?"></textarea>
+        <button class="btn primary send" type="submit">보내기</button>
+        <div class="hint" id="hint">질문하기: 에이전트가 바로 데이터를 확인하고 답합니다 (API 비용 발생). 메모: 다음 작업 때 읽습니다.</div>
+      </form>
+    </div>
+  </section>
+
+  <section class="col scroll" id="right">
+    <div class="panel">
+      <h2>전략서 <span id="book-ver" class="muted"></span></h2>
+      <div id="book"><p class="muted small">아직 발행된 전략서가 없습니다. 상단의 <b>전략 회의</b>를 눌러 시작하세요.</p></div>
+    </div>
+    <div class="panel">
+      <h2>전략서 백테스트 vs BTC 보유 <span class="muted small">(로그 스케일, 시작=1)</span></h2>
+      <div class="legend" id="bt-legend"></div>
+      <div class="chart" id="bt-chart"><p class="muted small">전략서 발행 후 표시됩니다.</p></div>
+    </div>
+    <div class="panel">
+      <h2>애널리스트 보고</h2>
+      <div id="reports"><p class="muted small">보고서 없음</p></div>
+    </div>
+    <div class="panel">
+      <h2>계좌 · 리스크</h2>
+      <div id="account"></div>
+      <div class="chart" id="eq-chart" style="margin-top:8px"></div>
+    </div>
+    <div class="panel">
+      <h2>자동 운용</h2>
+      <div class="auto-row">
+        <label>매매 주기 <input type="number" id="tm" value="60" min="5"> 분</label>
+        <label>회의 주기 <input type="number" id="rh" value="24" min="1"> 시간</label>
+        <label class="switch"><input type="checkbox" id="llm-trader" checked> 트레이더 LLM 사용</label>
+      </div>
+      <div style="margin-top:8px; display:flex; gap:8px; align-items:center">
+        <button class="btn" id="auto-btn">▶ 자동 운용 시작</button>
+        <span class="small muted" id="auto-status"></span>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>최근 체결</h2>
+      <div id="trades"><p class="muted small">체결 없음</p></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const AG = {
+  agent_1: { short: "트레이더", n: 1 }, agent_2: { short: "CSO", n: 2 }, agent_3: { short: "레드팀", n: 3 },
+  agent_4: { short: "추세", n: 4 }, agent_5: { short: "돌파", n: 5 }, agent_6: { short: "평균회귀", n: 6 },
+  agent_7: { short: "모멘텀", n: 7 }, agent_8: { short: "변동성돌파", n: 8 },
+};
+const GROUPS = [["경영", ["agent_2", "agent_3"]], ["리서치", ["agent_4", "agent_5", "agent_6", "agent_7", "agent_8"]], ["집행", ["agent_1"]]];
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const pct = (x, d = 1) => (x == null ? "—" : (x * 100).toFixed(d) + "%");
+const num = (x, d = 2) => (x == null ? "—" : Number(x).toLocaleString("ko-KR", { maximumFractionDigits: d, minimumFractionDigits: d }));
+const time = (ts) => ts ? new Date(ts).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "";
+const who = (id) => id === "user" ? "나" : id === "desk" ? "데스크" : id === "risk_guard" ? "리스크 가드" : id === "all" ? "전체" : (AG[id] ? `${id} ${AG[id].short}` : id);
+function avatar(id, cls = "") {
+  const a = AG[id];
+  if (!a) return `<div class="avatar ${cls}" style="background:var(--text-3)">${id === "user" ? "나" : "⚙"}</div>`;
+  return `<div class="avatar ${cls}" style="background:var(--a${a.n})" title="${esc(id)}">${a.n}</div>`;
+}
+
+let S = null, offset = 0, agentFilter = null, view = "all", sendMode = "ask", events = [];
+
+async function api(path, body) {
+  const opt = body ? { method: "POST", headers: { "Content-Type": "application/json", "X-Coin-Desk": "1" }, body: JSON.stringify(body) } : {};
+  const r = await fetch(path, opt);
+  return r.json();
+}
+
+/* ---------------- 상태 */
+async function loadState() {
+  try { S = await api("/api/state"); } catch { return; }
+  const m = S.market || {}, perf = S.performance || {}, g = perf.guard || {};
+  const mode = $("#mode"); mode.textContent = S.mode.toUpperCase(); mode.className = "badge " + S.mode;
+  $("#px-k").textContent = S.symbol;
+  $("#px").textContent = m.price ? num(m.price, 2) : "—";
+  $("#eq").textContent = perf.now_equity != null ? `${num(perf.now_equity)} ${S.quote}` : "—";
+  $("#expo").textContent = perf.current_exposure != null ? pct(perf.current_exposure, 0) : "—";
+  $("#guard").innerHTML = g.halted ? `<span class="status-line bad">⛔ 킬스위치</span>`
+    : g.daily_loss_hit ? `<span class="status-line warn">⚠️ 일일한도</span>` : `<span class="status-line ok">✓ 정상</span>`;
+  $("#cost").textContent = "$" + (S.usage?.usd_est_total ?? 0).toFixed(2);
+  renderOrg(); renderBook(); renderReports(); renderAccount(); renderRunner();
+  if (S.book && S.book.version !== btVersion) loadCharts();
+}
+
+function renderRunner() {
+  const r = S.runner, b = $("#banner-run");
+  const names = { research: "전략 회의", trade: "매매 사이클", trade_nollm: "매매 사이클", monitor: "레드팀 점검" };
+  if (r.job) { b.textContent = `⏳ ${names[r.job.name] || r.job.name} 진행 중${r.job.mock ? " (모의 LLM)" : ""} — 회의실에서 실시간으로 볼 수 있습니다.`; b.classList.add("show"); }
+  else b.classList.remove("show");
+  document.querySelectorAll("[data-job]").forEach((x) => (x.disabled = !!r.job || !!r.autopilot));
+  const w = $("#banner-warn");
+  const warn = [];
+  if (!S.has_api_key) warn.push("Claude API 키가 없습니다 (ANTHROPIC_API_KEY). 지금은 <b>모의 LLM</b>으로만 실행할 수 있습니다.");
+  if (r.last && !r.last.ok) warn.push(`마지막 작업 실패: ${esc(r.last.error).slice(0, 300)}`);
+  if (S.mode === "live") warn.push("<b>실거래 모드</b>입니다. 매매는 실제 자금으로 체결됩니다.");
+  w.innerHTML = warn.join("<br>"); w.classList.toggle("show", warn.length > 0);
+  if (!S.has_api_key && !mockTouched) $("#mock").checked = true;
+  const a = r.autopilot, btn = $("#auto-btn");
+  btn.textContent = a ? "■ 자동 운용 중지" : "▶ 자동 운용 시작";
+  $("#auto-status").textContent = a ? `${time(a.started)}부터 · 매매 ${a.trade_minutes}분 · 회의 ${a.research_hours}시간${a.mock ? " · 모의 LLM" : ""}` : "";
+}
+
+function renderOrg() {
+  const by = Object.fromEntries(S.agents.map((a) => [a.id, a]));
+  const label = { working: "작업 중", idle: "대기", stale: "응답 없음" };
+  $("#org").innerHTML = GROUPS.map(([g, ids]) => `<div class="group-label">${g}</div>` + ids.map((id) => {
+    const a = by[id];
+    return `<div class="agent ${agentFilter === id ? "selected" : ""}" data-id="${id}" role="button" tabindex="0">
+      ${avatar(id, a.state === "working" ? "working" : "")}
+      <div class="name"><span>${esc(id)} · ${esc(a.title)}</span><span class="pill ${a.state}">${label[a.state]}</span></div>
+      <div class="action">${esc(a.action || "—")}</div></div>`;
+  }).join("")).join("");
+}
+
+function sleevesHtml(sleeves) {
+  return sleeves.map((s) => `<div class="sleeve"><span>${esc(S?.strategies?.[s.strategy] || s.strategy)}</span>
+    <span class="num" style="text-align:right">${pct(s.weight, 0)}</span><div class="bar"><i style="width:${s.weight * 100}%"></i></div></div>`).join("");
+}
+function verdictPill(v) {
+  const icon = { approve: "✓", revise: "✎", reject: "✕" }[v] || "";
+  return `<span class="verdict ${v}">${icon} ${esc(v?.toUpperCase())}</span>`;
+}
+
+function renderBook() {
+  const b = S.book;
+  if (!b) return;
+  $("#book-ver").textContent = `v${b.version} · ${new Date(b.published_at).toLocaleString("ko-KR")}`;
+  $("#book").innerHTML = `${sleevesHtml(b.sleeves)}
+    <div class="stats">
+      <div class="stat"><div class="k">최대 비중</div><div class="v">${pct(b.max_exposure, 0)}</div></div>
+      <div class="stat"><div class="k">킬스위치</div><div class="v">-${pct(b.kill_drawdown, 0)}</div></div>
+      <div class="stat"><div class="k">리밸런싱 밴드</div><div class="v">${pct(b.rebalance_band, 0)}</div></div>
+      <div class="stat"><div class="k">샤프 IS / OOS</div><div class="v">${b.is_sharpe ?? "—"} / ${b.oos_sharpe ?? "—"}</div></div>
+      <div class="stat"><div class="k">최대 낙폭(백테스트)</div><div class="v">${pct(b.mdd)}</div></div>
+      <div class="stat"><div class="k">레드팀 최종</div><div class="v">${b.red_team_final ? verdictPill(b.red_team_final.verdict) : "—"}</div></div>
+    </div>
+    ${b.warnings?.length ? `<div class="small" style="color:var(--warning-ink)">⚠️ ${b.warnings.map(esc).join("<br>⚠️ ")}</div>` : ""}
+    <details><summary>CSO 근거 보기</summary><div class="body-text">${esc(b.rationale)}</div></details>
+    ${S.draft_pending ? `<p class="small muted">검토 중인 새 초안이 있습니다.</p>` : ""}`;
+}
+
+function renderReports() {
+  const ids = Object.keys(S.reports).sort();
+  if (!ids.length) return;
+  $("#reports").innerHTML = `<table><thead><tr><th>담당</th><th class="r">추천</th><th class="r">확신</th><th class="r">OOS 샤프</th><th class="r">신호</th></tr></thead><tbody>
+    ${ids.map((id) => { const r = S.reports[id]; return `<tr title="${esc(JSON.stringify(r.params))}">
+      <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--a${AG[id].n});margin-right:6px"></span>${esc(S.strategies[r.strategy] || r.strategy)}</td>
+      <td class="r">${pct(r.recommended_weight, 0)}</td><td class="r">${pct(r.confidence, 0)}</td>
+      <td class="r">${r.oos_sharpe ?? "—"}</td><td class="r">${r.signal > 0 ? `롱 ${pct(r.signal, 0)}` : "현금"}</td></tr>`; }).join("")}
+    </tbody></table>`;
+}
+
+function renderAccount() {
+  const p = S.performance, g = p.guard || {}, kill = S.book?.kill_drawdown;
+  const dd = Math.abs(g.drawdown || 0);
+  $("#account").innerHTML = `<div class="kv">
+      <span class="k">자산</span><span class="num">${p.now_equity != null ? num(p.now_equity) + " " + S.quote : "—"}</span>
+      <span class="k">누적 수익 / 같은 기간 BTC</span><span class="num">${pct(p.total_return, 2)} / ${pct(p.btc_return_same_period, 2)}</span>
+      <span class="k">오늘 손익</span><span class="num">${pct(g.day_pnl, 2)}</span>
+      <span class="k">체결 수</span><span class="num">${p.trades ?? 0}</span>
+    </div>
+    <div class="small muted" style="margin-top:8px">고점 대비 낙폭 ${pct(-dd, 1)} ${kill ? `/ 킬스위치 -${pct(kill, 0)}` : ""}</div>
+    <div class="meter" role="img" aria-label="낙폭 ${pct(dd, 1)}">${kill ? `<i style="width:${Math.min(100, dd / kill * 100)}%"></i><b style="left:calc(100% - 2px)"></b>` : ""}</div>
+    ${g.halted ? `<p class="small" style="color:var(--critical-ink)">⛔ ${esc(g.halt_reason)}</p>` : ""}`;
+  const t = S.trades || [];
+  if (t.length) $("#trades").innerHTML = `<table><thead><tr><th>시각</th><th>주체</th><th>결과</th><th class="r">비중</th></tr></thead><tbody>
+    ${t.map((x) => `<tr title="${esc(x.reason)}"><td>${time(x.ts)}</td><td>${esc(who(x.actor))}</td><td>${esc(x.result)}</td>
+      <td class="r">${pct(x.exposure_before, 0)}→${pct(x.exposure_after, 0)}</td></tr>`).join("")}</tbody></table>`;
+}
+
+/* ---------------- 차트 (단일 축, 2px 선, 크로스헤어 + 툴팁) */
+let btVersion = null, chartData = null;
+async function loadCharts() {
+  chartData = await api("/api/charts");
+  btVersion = chartData.backtest?.version ?? null;
+  drawCharts();
+}
+function drawCharts() {
+  if (!chartData) return;
+  const bt = chartData.backtest;
+  if (bt) {
+    $("#bt-legend").innerHTML = `<span><i style="background:var(--a1)"></i>전략서 v${bt.version}</span><span><i style="background:var(--a2)"></i>BTC 보유</span><span class="muted">음영 = OOS (${bt.oos_starts}~)</span>`;
+    lineChart($("#bt-chart"), bt.points.map((p) => ({ x: p.d, strategy: p.strategy, bh: p.bh })),
+      [{ key: "strategy", label: "전략서", color: "var(--a1)" }, { key: "bh", label: "BTC 보유", color: "var(--a2)" }],
+      { log: true, shadeFrom: bt.oos_starts, fmt: (v) => v.toFixed(2) + "배", h: 200 });
+  }
+  const eq = chartData.equity;
+  if (eq.length >= 2) {
+    const e0 = eq[0].equity, p0 = eq[0].price;
+    lineChart($("#eq-chart"), eq.map((e) => ({ x: e.ts, eq: e.equity / e0, px: e.price / p0 })),
+      [{ key: "eq", label: "내 자산", color: "var(--a1)" }, { key: "px", label: "BTC", color: "var(--a2)" }],
+      { fmt: (v) => ((v - 1) * 100).toFixed(2) + "%", h: 140, title: "운용 성과 (시작=0%)" });
+  }
+}
+// 선 끝 라벨이 겹치지 않게 최소 13px 간격으로 밀어낸다
+function endLabels(ls, top, bottom) {
+  ls.sort((a, b) => a.y - b.y);
+  for (let i = 1; i < ls.length; i++) if (ls[i].y - ls[i - 1].y < 13) ls[i].y = ls[i - 1].y + 13;
+  const over = ls.length ? ls[ls.length - 1].y - bottom : 0;
+  if (over > 0) ls.forEach((l) => (l.y = Math.max(top, l.y - over)));
+  return ls;
+}
+function lineChart(el, pts, series, o) {
+  const W = el.clientWidth || 340, H = o.h, m = { l: 40, r: 56, t: 8, b: 20 };
+  const ys = pts.flatMap((p) => series.map((s) => p[s.key])).filter((v) => v > 0);
+  const tf = o.log ? Math.log : (v) => v;
+  let lo = tf(Math.min(...ys)), hi = tf(Math.max(...ys));
+  if (hi - lo < 1e-9) { lo -= 0.01; hi += 0.01; }
+  const X = (i) => m.l + (i / Math.max(1, pts.length - 1)) * (W - m.l - m.r);
+  const Y = (v) => m.t + (1 - (tf(v) - lo) / (hi - lo)) * (H - m.t - m.b);
+  const ticks = [];
+  if (o.log) { for (let k = Math.floor(Math.log10(Math.exp(lo))); k <= Math.ceil(Math.log10(Math.exp(hi))); k++) for (const f of [1, 3]) { const v = f * 10 ** k; if (tf(v) >= lo && tf(v) <= hi) ticks.push(v); } }
+  else { for (let i = 0; i <= 3; i++) ticks.push(lo + (hi - lo) * i / 3); }
+  const shadeI = o.shadeFrom ? pts.findIndex((p) => p.x >= o.shadeFrom) : -1;
+  const path = (k) => pts.map((p, i) => `${i ? "L" : "M"}${X(i).toFixed(1)},${Y(p[k]).toFixed(1)}`).join("");
+  const last = pts[pts.length - 1];
+  el.innerHTML = `${o.title ? `<div class="small muted">${esc(o.title)}</div>` : ""}<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="${esc(series.map((s) => s.label).join(" vs "))}">
+    ${shadeI > 0 ? `<rect x="${X(shadeI)}" y="${m.t}" width="${X(pts.length - 1) - X(shadeI)}" height="${H - m.t - m.b}" fill="var(--shade)"/>` : ""}
+    ${ticks.map((v) => `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--grid)"/><text x="${m.l - 6}" y="${Y(v) + 4}" text-anchor="end" font-size="10" fill="var(--text-3)">${o.fmt(v)}</text>`).join("")}
+    <text x="${m.l}" y="${H - 4}" font-size="10" fill="var(--text-3)">${esc(String(pts[0].x).slice(0, 10))}</text>
+    <text x="${W - m.r}" y="${H - 4}" font-size="10" fill="var(--text-3)" text-anchor="end">${esc(String(last.x).slice(0, 10))}</text>
+    ${series.map((s) => `<path d="${path(s.key)}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round"/>`).join("")}
+    ${endLabels(series.map((s) => ({ label: s.label, y: Y(last[s.key]) + 4 })), m.t + 8, H - m.b).map((l) => `<text x="${W - m.r + 6}" y="${l.y}" font-size="11" fill="var(--text-2)">${esc(l.label)}</text>`).join("")}
+    <line class="xh" y1="${m.t}" y2="${H - m.b}" stroke="var(--text-3)" stroke-dasharray="3 3" visibility="hidden"/>
+    ${series.map((s) => `<circle class="dot" r="4" fill="${s.color}" stroke="var(--surface)" stroke-width="2" visibility="hidden"/>`).join("")}
+    <rect x="${m.l}" y="0" width="${W - m.l - m.r}" height="${H}" fill="transparent" class="hit"/>
+  </svg><div class="tip"></div>`;
+  const svg = el.querySelector("svg"), tip = el.querySelector(".tip"), xh = svg.querySelector(".xh"), dots = svg.querySelectorAll(".dot");
+  const move = (ev) => {
+    const r = svg.getBoundingClientRect(), x = (ev.clientX - r.left) * (W / r.width);
+    const i = Math.max(0, Math.min(pts.length - 1, Math.round((x - m.l) / (W - m.l - m.r) * (pts.length - 1))));
+    const p = pts[i];
+    xh.setAttribute("x1", X(i)); xh.setAttribute("x2", X(i)); xh.setAttribute("visibility", "visible");
+    series.forEach((s, j) => { dots[j].setAttribute("cx", X(i)); dots[j].setAttribute("cy", Y(p[s.key])); dots[j].setAttribute("visibility", "visible"); });
+    tip.innerHTML = `<div class="muted">${esc(String(p.x).slice(0, 16).replace("T", " "))}</div>` +
+      series.map((s) => `<div><span style="display:inline-block;width:10px;height:2px;background:${s.color};vertical-align:middle;margin-right:6px"></span>${esc(s.label)} <b class="num">${o.fmt(p[s.key])}</b></div>`).join("");
+    tip.style.display = "block";
+    const px = X(i) * r.width / W;
+    tip.style.left = Math.min(px + 12, r.width - tip.offsetWidth - 4) + "px"; tip.style.top = "8px";
+  };
+  const hit = svg.querySelector(".hit");
+  hit.addEventListener("pointermove", move);
+  hit.addEventListener("pointerleave", () => { tip.style.display = "none"; xh.setAttribute("visibility", "hidden"); dots.forEach((d) => d.setAttribute("visibility", "hidden")); });
+}
+new ResizeObserver(() => drawCharts()).observe($("#right"));
+
+/* ---------------- 피드 */
+const TALK = new Set(["message", "question", "answer", "report", "book_draft", "book_published", "critique", "trade", "phase", "error"]);
+function visible(e) {
+  if (e.type === "session_start") return false;
+  if (e.type === "session_end") return !!e.data?.error || (!e.data?.consult && !!e.body);
+  if (e.type === "tool") return $("#show-tools").checked;
+  if (view === "talk" && !TALK.has(e.type)) return false;
+  if (agentFilter && e.from !== agentFilter && e.to !== agentFilter && e.type !== "phase") return false;
+  return true;
+}
+function evHtml(e) {
+  const d = e.data || {};
+  const meta = (extra = "") => `<div class="meta"><b>${esc(who(e.from))}</b>${e.to ? ` → ${esc(who(e.to))}` : ""} · ${time(e.ts)} ${extra}</div>`;
+  const wrap = (inner) => `<div class="ev">${avatar(e.from)}<div>${inner}</div></div>`;
+  switch (e.type) {
+    case "phase": return `<div class="phase">${esc(e.title)} · ${time(e.ts)}</div>`;
+    case "note": return wrap(`<div class="note">💭 ${esc(e.body)}</div>`);
+    case "tool": return wrap(`<div class="tool">🔧 ${esc(e.title)}(${esc(e.body)})</div>`);
+    case "message": return wrap(meta("· ✉️ 메모") + `<div class="bubble ${e.from === "user" ? "user" : ""}"><b>${esc(e.title)}</b>${e.body !== e.title ? "\n" + esc(e.body) : ""}</div>`);
+    case "question": return wrap(meta("· 💬 질문") + `<div class="bubble ${e.from === "user" ? "user" : ""}">${esc(e.body)}</div>`);
+    case "answer": return wrap(meta("· 답변") + `<div class="bubble">${esc(e.body)}</div>`);
+    case "session_end": return wrap(meta(e.data?.error ? "· 오류" : "") + `<div class="bubble">${esc(e.body)}</div>`);
+    case "report": return wrap(meta() + `<div class="card"><h3>📊 ${esc(S?.strategies?.[d.strategy] || d.strategy)} 보고서
+        <span class="pill">추천 ${pct(d.recommended_weight, 0)}</span><span class="pill">확신 ${pct(d.confidence, 0)}</span><span class="pill">${d.signal > 0 ? "현재 롱" : "현재 현금"}</span></h3>
+      <div class="stats">
+        <div class="stat"><div class="k">샤프 IS / OOS</div><div class="v">${d.is_sharpe ?? "—"} / ${d.oos_sharpe ?? "—"}</div></div>
+        <div class="stat"><div class="k">BTC 보유 OOS 샤프</div><div class="v">${d.bh_oos_sharpe ?? "—"}</div></div>
+        <div class="stat"><div class="k">OOS 연수익</div><div class="v">${pct(d.oos_cagr)}</div></div>
+        <div class="stat"><div class="k">최대 낙폭</div><div class="v">${pct(d.mdd)}</div></div>
+        <div class="stat"><div class="k">이웃 파라미터 최저 샤프</div><div class="v">${d.neighbor_sharpe_min ?? "—"}</div></div>
+      </div>
+      <div class="body-text">${esc(e.body)}</div>
+      <details><summary>국면 판단 · 리스크 · 파라미터</summary><div class="body-text small">${esc(d.regime_view)}\n\n${(d.risks || []).map((r) => "• " + esc(r)).join("\n")}\n\n${esc(JSON.stringify(d.params))}</div></details></div>`);
+    case "book_draft":
+    case "book_published": return wrap(meta() + `<div class="card"><h3>${e.type === "book_published" ? "📘" : "📝"} ${esc(e.title)}</h3>
+      ${sleevesHtml(d.sleeves || [])}
+      <div class="stats">
+        <div class="stat"><div class="k">최대 비중</div><div class="v">${pct(d.max_exposure, 0)}</div></div>
+        <div class="stat"><div class="k">킬스위치</div><div class="v">-${pct(d.kill_drawdown, 0)}</div></div>
+        <div class="stat"><div class="k">샤프 IS / OOS</div><div class="v">${d.is_sharpe ?? "—"} / ${d.oos_sharpe ?? "—"}</div></div>
+        <div class="stat"><div class="k">최대 낙폭</div><div class="v">${pct(d.mdd)}</div></div>
+      </div>
+      ${d.response_to_red_team ? `<details open><summary>레드팀 지적에 대한 답변</summary><div class="body-text">${esc(d.response_to_red_team)}</div></details>` : ""}
+      <details><summary>근거</summary><div class="body-text">${esc(e.body)}</div></details>
+      ${(d.warnings || []).length ? `<div class="small" style="color:var(--warning-ink)">⚠️ ${d.warnings.map(esc).join("<br>⚠️ ")}</div>` : ""}</div>`);
+    case "critique": return wrap(meta(d.context === "monitor" ? "· 운용 모니터링" : "") + `<div class="card"><h3>🛡️ 레드팀 ${verdictPill(d.verdict)} ${d.escalate ? `<span class="verdict reject">🚩 긴급 재검토</span>` : ""}</h3>
+      <div class="body-text">${esc(e.body)}</div>
+      ${(d.issues || []).map((i) => `<div class="issue"><span class="sev ${esc(i.severity)}">${esc(i.severity)}</span><div><b>${esc(i.issue)}</b>
+        <div class="small muted">근거: ${esc(i.evidence)}</div>${i.suggestion ? `<div class="small">제안: ${esc(i.suggestion)}</div>` : ""}</div></div>`).join("")}</div>`);
+    case "trade": return wrap(meta() + `<div class="card"><h3>💱 ${esc(e.title)}</h3><div class="small">${d.exposure_before != null ? `비중 ${pct(d.exposure_before, 1)} → ${pct(d.exposure_after, 1)} · ` : ""}${d.fill ? `${esc(d.fill.side)} ${num(d.fill.qty, 5)} BTC @ ${num(d.fill.avg_price)} · ` : ""}${d.clamped ? esc(d.clamped) + " · " : ""}${esc(e.body)}</div></div>`);
+    case "error": return wrap(meta() + `<div class="card err"><h3>❌ ${esc(e.title)}</h3><div class="body-text small">${esc(e.body)}</div></div>`);
+    default: return "";
+  }
+}
+function renderFeed(stick) {
+  const f = $("#feed");
+  const near = f.scrollHeight - f.scrollTop - f.clientHeight < 80;
+  f.innerHTML = events.filter(visible).slice(-400).map(evHtml).join("") || `<p class="muted small">아직 아무 일도 없었습니다. 상단의 <b>전략 회의</b>로 시작하세요.</p>`;
+  if (stick || near) { f.scrollTop = f.scrollHeight; $("#jump").style.display = "none"; }
+}
+async function loadFeed() {
+  let r; try { r = await api("/api/feed?offset=" + offset); } catch { return; }
+  offset = r.offset;
+  if (!r.events.length) return;
+  const f = $("#feed"), near = f.scrollHeight - f.scrollTop - f.clientHeight < 80;
+  events.push(...r.events);
+  if (events.length > 3000) events = events.slice(-2000);
+  renderFeed(false);
+  if (!near && r.events.some(visible)) $("#jump").style.display = "";
+  if (r.events.some((e) => ["session_start", "session_end", "book_published", "trade", "report", "critique"].includes(e.type))) loadState();
+}
+$("#jump").onclick = () => renderFeed(true);
+$("#feed").addEventListener("scroll", () => { const f = $("#feed"); if (f.scrollHeight - f.scrollTop - f.clientHeight < 80) $("#jump").style.display = "none"; });
+
+/* ---------------- 상호작용 */
+let mockTouched = false;
+$("#mock").addEventListener("change", () => (mockTouched = true));
+function confirmLive(what) { return S?.mode !== "live" || confirm(`실거래 모드입니다. ${what}을(를) 실행하면 실제 자금으로 주문이 나갈 수 있습니다. 계속할까요?`); }
+document.querySelectorAll("[data-job]").forEach((b) => b.addEventListener("click", async () => {
+  if (b.dataset.job !== "research" && !confirmLive(b.textContent)) return;
+  const r = await api("/api/run", { job: b.dataset.job, mock: $("#mock").checked });
+  if (r.error) alert(r.error);
+  loadState();
+}));
+$("#auto-btn").onclick = async () => {
+  const on = !S?.runner?.autopilot;
+  if (on && !confirmLive("자동 운용")) return;
+  const r = await api("/api/autopilot", { on, mock: $("#mock").checked, trade_minutes: +$("#tm").value, research_hours: +$("#rh").value, llm_trader: $("#llm-trader").checked });
+  if (r.error) alert(r.error);
+  loadState();
+};
+document.querySelectorAll("#filters .chip").forEach((c) => c.onclick = () => {
+  view = c.dataset.f; document.querySelectorAll("#filters .chip").forEach((x) => x.classList.toggle("on", x === c)); renderFeed(true);
+});
+$("#show-tools").onchange = () => renderFeed(true);
+function setAgentFilter(id) {
+  agentFilter = agentFilter === id ? null : id;
+  if (agentFilter) $("#to").value = agentFilter;
+  $("#agent-filter").innerHTML = agentFilter ? `<button class="chip on" id="clear-af">${esc(who(agentFilter))} ✕</button>` : "";
+  if (agentFilter) $("#clear-af").onclick = () => setAgentFilter(agentFilter);
+  renderOrg(); renderFeed(true);
+}
+$("#org").addEventListener("click", (e) => { const a = e.target.closest(".agent"); if (a) setAgentFilter(a.dataset.id); });
+$("#org").addEventListener("keydown", (e) => { const a = e.target.closest(".agent"); if (a && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setAgentFilter(a.dataset.id); } });
+
+$("#to").innerHTML = Object.keys(AG).map((id) => `<option value="${id}">${esc(who(id))}</option>`).join("") + `<option value="all">전체 (메모만)</option>`;
+$("#to").value = "agent_2";
+document.querySelectorAll(".seg button").forEach((b) => b.onclick = () => {
+  sendMode = b.dataset.m; document.querySelectorAll(".seg button").forEach((x) => x.classList.toggle("on", x === b));
+  $("#text").placeholder = sendMode === "ask" ? "예: 지금 전략서에서 가장 불안한 부분이 뭐야?" : "예: 다음 회의 때 2022년 하락장 성과를 꼭 따로 봐줘";
+});
+$("#composer").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const text = $("#text").value.trim(), to = $("#to").value;
+  if (!text) return;
+  if (sendMode === "ask" && to === "all") { alert("질문은 한 명에게만 할 수 있습니다. 전체에게는 메모를 남기세요."); return; }
+  const r = sendMode === "ask" ? await api("/api/ask", { agent: to, question: text, mock: $("#mock").checked })
+                               : await api("/api/message", { to, body: text });
+  if (r.error) { alert(r.error); return; }
+  $("#text").value = "";
+  loadFeed();
+});
+$("#text").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) $("#composer").requestSubmit(); });
+
+$("#theme").onclick = () => {
+  const cur = document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  const next = cur === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = next;
+  try { localStorage.setItem("coin-desk-theme", next); } catch {}
+  drawCharts();
+};
+try { const t = localStorage.getItem("coin-desk-theme"); if (t) document.documentElement.dataset.theme = t; } catch {}
+
+loadState().then(() => { loadFeed().then(() => renderFeed(true)); loadCharts(); });
+setInterval(loadFeed, 1500);
+setInterval(loadState, 4000);
+setInterval(loadCharts, 60000);
+</script>
+</body>
+</html>

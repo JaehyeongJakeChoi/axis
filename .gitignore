@@ -1,0 +1,23 @@
+# Secrets and personal data (never commit)
+api-keys.txt
+.kiwoom_token.json
+ledger*.json
+alert-settings.json
+alerts-sent.json
+alerts.log
+signals-risk.json
+signals-state.json
+exports/
+*.backup*
+.env
+
+# Python / tooling
+__pycache__/
+.venv/
+*.pyc
+.DS_Store
+.claude/
+
+# Coin Desk runtime state and cached market data
+coin-desk/state/
+coin-desk/data/

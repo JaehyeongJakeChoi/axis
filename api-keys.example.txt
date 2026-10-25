@@ -1,0 +1,7 @@
+# Copy to api-keys.txt (git-ignored). Read-only keys only.
+UPBIT_ACCESS_KEY=
+UPBIT_SECRET_KEY=
+KIWOOM_APP_KEY=
+KIWOOM_SECRET_KEY=
+# Optional: ntfy.sh topic for phone push alerts (pick a long random name)
+NTFY_TOPIC=
