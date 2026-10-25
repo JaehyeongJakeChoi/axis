@@ -18,6 +18,3 @@ __pycache__/
 .DS_Store
 .claude/
 
-# Coin Desk runtime state and cached market data
-coin-desk/state/
-coin-desk/data/

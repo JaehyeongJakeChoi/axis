@@ -2,7 +2,7 @@
 
 **A personal multi-asset risk desk, built with AI coding tools.** Axis brings Korean equities, US equities and crypto from three brokerage APIs into one live dashboard. On top of that it runs a risk-monitoring layer modeled on how a fund's risk team watches a book: risk contribution, correlation clustering, drawdown, VaR breaches and crypto–equity coupling.
 
-The repo also contains **[Coin Desk](coin-desk/)**, an 8-agent BTC trading desk in which Claude agents research, debate and execute a strategy. Every number they cite comes from a deterministic backtest engine, and the risk limits are hard-coded so no LLM can override them.
+**▶ Live demo: [jaehyeongjakechoi.github.io/axis](https://jaehyeongjakechoi.github.io/axis/)** (fictional portfolio, runs in the browser)
 
 ![Holdings tab (demo data)](docs/img/holdings.png)
 
@@ -67,27 +67,14 @@ flowchart LR
 - **[`prompts/morning-briefing.md`](prompts/morning-briefing.md)**: the full instruction set for the scheduled AI agent that writes the daily brief. The agent is told to take numbers only from script output and never from news text, and to report risk signals exactly as the system judged them.
 - **Engineering details** handled along the way: Kiwoom token refresh and rate-limit retry; trades that execute today but settle later (shown as *pending*); USD/KRW on the trade date for US cost basis; moving-average cost basis for crypto; Korean market holidays; and deduplicating alerts across restarts.
 
-## Coin Desk: 8-agent BTC trading desk
-
-![Coin Desk dashboard (paper trading, mock LLM)](docs/img/coin-desk.png)
-
-A multi-agent system built on the Claude API. It is organized like a small hedge fund desk:
-
-- **5 analysts**: trend, Donchian breakout, RSI mean reversion, time-series momentum with volatility targeting, and volatility breakout. Each analyst sweeps parameters and checks robustness.
-- **CSO**: blends the analysts' reports into a strategy book.
-- **Red team**: reviews the book and approves, requests revisions, or rejects it, with evidence.
-- **Trader**: may only execute **at or below** the engine's proposed exposure.
-
-**LLMs cannot make up numbers.** Every performance figure is recomputed by a deterministic backtest engine, which includes fees and slippage and holds out the last 30% of the data as an out-of-sample period. The system attaches these figures to each report itself. **LLMs also cannot cross the risk limits**: long-only spot, no leverage, a drawdown kill switch that liquidates without consulting any LLM, a daily-loss freeze and a per-order cap. It runs in paper mode by default, then testnet, and only then live. See [`coin-desk/README.md`](coin-desk/README.md).
-
 ## How I used AI to build this
 
-The JD asks for evidence of building with AI tools. This repository is that evidence. I used Claude Code as the engineer and kept the product decisions, the risk methodology and the review of every change to myself.
+I built Axis with Claude Code as the engineer and kept the product decisions, the risk methodology and the review of every change to myself.
 
 - **Iterating feature by feature.** Axis went from a first version to the current system in about two weeks (Oct 4–15, 2026), across more than 25 named iterations. Each one was snapshotted before the change. See the build log below.
 - **Research before rules.** Before writing any risk-signal code, I ran an AI-assisted literature review on risk contribution, retail investor behavior, fund concentration limits (UCITS, Korean public-fund rules) and BTC–equity correlation. The rules were written down and tagged by evidence strength before they were implemented.
-- **Keeping the LLM's numbers honest.** In both projects, numbers are produced by code (`macro.py`, `server.py --signals`, `backtest.py`), and the LLM's job is to explain them. That is the most important design rule I learned from this project.
-- **Keeping the AI away from the money.** The portfolio server cannot place orders. In Coin Desk, the kill switch and position limits live outside the LLM loop. API keys never leave the machine, and the `--check` and `--signals` outputs never print amounts.
+- **Keeping the LLM's numbers honest.** Numbers are produced by code (`macro.py`, `server.py --signals`), and the LLM's job is to explain them. That is the most important design rule I learned from this project.
+- **Keeping the AI away from the money.** The portfolio server cannot place orders. API keys never leave the machine, and the `--check` and `--signals` outputs never print amounts.
 
 ### Build log
 
@@ -97,7 +84,7 @@ The JD asks for evidence of building with AI tools. This repository is that evid
 | Oct 7 | Auto-journal on new fills; pending-trade detection; trade statistics; portfolio risk analytics; corporate actions (rights issues); complementary-asset suggestions |
 | Oct 9 | Macro factor model for the morning brief; Korean market holiday calendar |
 | Oct 10 | Brief index/archive; lightweight 10 s quotes polling (12 KB vs. 800 KB); QA pass |
-| Oct 15 | Literature review → operating principles → five risk signals with state-transition alerts and hysteresis; Coin Desk |
+| Oct 15 | Literature review → operating principles → five risk signals with state-transition alerts and hysteresis |
 
 ## Run the demo (no accounts needed)
 
@@ -112,14 +99,6 @@ The dashboard detects that it is not running inside the Claude app and loads [`d
 ```bash
 python3 demo/demo.py --dump > demo/sample-portfolio.json
 python3 demo/demo.py --signals      # the five risk signals, percentages only
-```
-
-Coin Desk runs end-to-end without an API key in mock-LLM mode:
-
-```bash
-cd coin-desk && uv sync
-uv run python -m coin_desk --mock research   # full research meeting, no API cost
-uv run python -m coin_desk web               # http://127.0.0.1:8765
 ```
 
 ## Run with real accounts
@@ -142,11 +121,10 @@ demo/                      fictional portfolio + generated sample payload
 docs/research/             literature reviews: risk contribution, BTC valuation (Korean)
 docs/operating-principles.md  risk rules with evidence tags (Korean)
 docs/Axis-brochure.pdf     two-page product brochure (example figures)
-coin-desk/                 8-agent BTC trading desk (Claude API)
 ```
 
 The code comments and research notes are in Korean, because I wrote them for myself first.
 
 ## Disclaimer
 
-Personal project, not investment advice. The software is read-only toward brokerage accounts. Coin Desk defaults to paper trading, and past backtest performance does not guarantee future results.
+Personal project, not investment advice. The software is read-only toward brokerage accounts and cannot place orders.
